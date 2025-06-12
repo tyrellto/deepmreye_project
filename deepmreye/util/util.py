@@ -8,10 +8,11 @@ from math import atan2
 
 import numpy as np
 import pandas as pd
-import tensorflow.keras.backend as K
 from scipy import ndimage
 from sklearn.metrics import r2_score
-from tensorflow.keras.callbacks import LearningRateScheduler
+import torch
+import torch.nn.functional as F
+from torch.optim.lr_scheduler import LambdaLR
 
 
 def augment_input(X, rotation=0, shift=0, zoom=0):
@@ -129,15 +130,17 @@ def augment_input(X, rotation=0, shift=0, zoom=0):
 
 
 def mish(x):
-    return x * K.tanh(K.softplus(x))
+    return x * torch.tanh(F.softplus(x))
 
 
-def step_decay_schedule(initial_lr=1e-4, decay_factor=0.9, num_epochs=50):
+def step_decay_schedule(optimizer, initial_lr=1e-4, decay_factor=0.9, num_epochs=50):
 
-    def schedule(epoch):
-        return initial_lr * (1 - epoch / num_epochs) ** decay_factor
+    def lr_lambda(epoch):
+        return (1 - epoch / num_epochs) ** decay_factor
 
-    return LearningRateScheduler(schedule)
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = initial_lr
+    return LambdaLR(optimizer, lr_lambda=lr_lambda)
 
 
 def euclidean_distance(y_true, y_pred):
