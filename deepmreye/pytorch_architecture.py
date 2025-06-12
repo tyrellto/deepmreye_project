@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 
 
 class Conv3dBlock(nn.Module):
@@ -147,14 +146,10 @@ class StandardModel(nn.Module):
         self.first = Conv3dBlock(channels, opts["filters"], opts["kernel"], 1, act)
         self.dropout = nn.Dropout3d(opts["dropout_rate"])
 
-        # ensure that downsampling does not reduce spatial dimensions below 1
-        max_downsamples = int(math.log2(max(1, min(x, y, z))))
-        depth = min(opts["depth"], max_downsamples + 1)
-
         self.down = DownsampleBlock(
             opts["filters"],
             opts["filters"],
-            depth,
+            opts["depth"],
             opts["multiplier"],
             opts["groups"],
             act,
