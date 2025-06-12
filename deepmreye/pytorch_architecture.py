@@ -3,6 +3,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
+def _compute_depth(x: int, y: int, z: int, target: int) -> int:
+    """Compute a valid downsampling depth for given spatial dimensions.
+
+    Downsampling is performed by a convolution with stride 2 followed by an
+    average pooling layer with kernel size 2. This sequence only works when all
+    spatial dimensions are at least 3 before the convolution step and at least
+    2 before the pooling step. The returned depth corresponds to the number of
+    resolution levels in ``DownsampleBlock`` (``depth`` argument)."""
+
+    dims = [int(x), int(y), int(z)]
+    depth = 1
+    steps = 0
+    while steps < target - 1 and min(dims) >= 3:
+        # convolution with stride 2 (kernel 3, padding 1)
+        dims = [math.ceil(d / 2) for d in dims]
+        # average pooling with kernel size 2, stride 2
+        if min(dims) < 2:
+            break
+        dims = [d // 2 for d in dims]
+        depth += 1
+        steps += 1
+    return depth
 
 class Conv3dBlock(nn.Module):
     """3D convolution followed by optional average pooling and activation."""
@@ -148,8 +170,7 @@ class StandardModel(nn.Module):
         self.dropout = nn.Dropout3d(opts["dropout_rate"])
 
         # ensure that downsampling does not reduce spatial dimensions below 1
-        max_downsamples = int(math.log2(max(1, min(x, y, z))))
-        depth = min(opts["depth"], max_downsamples + 1)
+        depth = _compute_depth(x, y, z, opts["depth"]) 
 
         self.down = DownsampleBlock(
             opts["filters"],
